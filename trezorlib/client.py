@@ -424,6 +424,39 @@ class ProtocolMixin(object):
         n = self._convert_prime(n)
         return self.call(proto.EthereumGetAddress(address_n=n, show_display=show_display))
 
+    @field('pubkey')
+    @expect(proto.SteemPublicKey)
+    def steem_get_pubkey(self, n, show_display=True):
+        n = self._convert_prime(n)
+        return self.call(proto.SteemGetPublicKey(address_n=n))
+
+    @expect(proto.SteemTxSignature)
+    def steem_transfer(self, args):
+        from datetime import datetime
+        from calendar import timegm
+        expiration = timegm(time.strptime((args.expiration + "UTC"), '%Y-%m-%dT%H:%M:%S%Z'))
+
+        if args.asset == "SBD":
+            amount = int(round(args.amount * 10 ** 3))
+        elif args.asset == "STEEM":
+            amount = int(round(args.amount * 10 ** 3))
+        else:
+            raise Exception("Unknown Asset")
+
+        return self.call(proto.SteemSignTx(
+            ref_block_num=args.block_num,
+            ref_block_prefix=args.block_prefix,
+            expiration=expiration,
+            transfer=proto.SteemOperationTransfer(
+                **{"from": getattr(args, "from"),
+                   "to": args.to,
+                   "amount": amount,  # amount is the satoshi integer
+                   "asset": args.asset,
+                   "memo": args.memo if args.memo else ""
+                   }
+            )
+        ))
+
     @session
     def ethereum_sign_tx(self, n, nonce, gas_price, gas_limit, to, value, data=None):
         def int_to_big_endian(value):

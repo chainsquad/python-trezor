@@ -118,6 +118,26 @@ class Commands(object):
         address = self.client.ethereum_get_address(address_n, args.show_display)
         return "0x%s" % (binascii.hexlify(address),)
 
+    def steem_get_pubkey(self, args):
+        address_n = self.client.expand_path(args.n)
+        pubkey = self.client.steem_get_pubkey(address_n)
+        return (binascii.hexlify(pubkey))
+
+    def steem_transfer(self, args):
+        signature = self.client.steem_transfer(args)
+        tx = {'expiration': args.expiration,
+              'extensions': [],
+              'operations': [['transfer',
+                              {'amount': "%.3f %s" % (args.amount, args.asset),
+                               'from': getattr(args, "from"),
+                               'memo': args.memo if args.memo else "",
+                               'to': args.to}]],
+              'ref_block_num': args.block_num,
+              'ref_block_prefix': args.block_prefix,
+              'signatures': [(binascii.hexlify(signature.signature))],
+              'digest': binascii.hexlify(signature.digest)}
+        return tx
+
     def ethereum_sign_tx(self, args):
         from ethjsonrpc import EthJsonRpc
         from ethjsonrpc.utils import hex_to_dec
@@ -328,6 +348,8 @@ class Commands(object):
     get_address.help = 'Get bitcoin address in base58 encoding'
     ethereum_get_address.help = 'Get Ethereum address in hex encoding'
     ethereum_sign_tx.help = 'Sign (and optionally publish) Ethereum transaction'
+    steem_get_pubkey.help = 'Get a Steem pubkey'
+    steem_transfer.help = "Sign a Steem transfer tx"
     get_entropy.help = 'Get example entropy'
     get_features.help = 'Retrieve device features and settings'
     get_public_node.help = 'Get public node of given path'
@@ -358,6 +380,22 @@ class Commands(object):
     ethereum_get_address.arguments = (
         (('-n', '-address'), {'type': str}),
         (('-d', '--show-display'), {'action': 'store_true', 'default': False}),
+    )
+
+    steem_get_pubkey.arguments = (
+        (('-n', '-address'), {'type': str}),
+        (('-d', '--show-display'), {'action': 'store_true', 'default': False}),
+    )
+
+    steem_transfer.arguments = (
+        (('-bn', '--block_num'), {'type': int}),
+        (('-bp', '--block_prefix'), {'type': int}),
+        (('-ex', '--expiration'), {'type': str}),
+        (('-f', '--from'), {'type': str}),
+        (('-t', '--to'), {'type': str}),
+        (('-am', '--amount'), {'type': float}),
+        (('-as', '--asset'), {'type': str}),
+        (('-m', '--memo'), {'type': str}),
     )
 
     ethereum_sign_tx.arguments = (
