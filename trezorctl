@@ -119,8 +119,8 @@ class Commands(object):
         return "0x%s" % (binascii.hexlify(address),)
 
     def steem_get_pubkey(self, args):
-        address_n = self.client.expand_path(args.n)
-        pubkey = self.client.steem_get_pubkey(address_n)
+        pubkey_n = self.client.expand_path(args.pubkey)
+        pubkey = self.client.steem_get_pubkey(pubkey_n)
         return (binascii.hexlify(pubkey))
 
     def steem_transfer(self, args):
@@ -132,6 +132,30 @@ class Commands(object):
                                'from': getattr(args, "from"),
                                'memo': args.memo if args.memo else "",
                                'to': args.to}]],
+              'ref_block_num': args.block_num,
+              'ref_block_prefix': args.block_prefix,
+              'signatures': [(binascii.hexlify(signature.signature))],
+              'digest': binascii.hexlify(signature.digest)}
+        return tx
+
+    def steem_account_update(self, args):
+        signature = self.client.steem_account_update(args)
+        tx = {'expiration': args.expiration,
+              'extensions': [],
+              'operations': [['account_update',
+                              {'account': args.account,
+                               'json_metadata': getattr(args, "json_metadata", ""),
+                               'memo_key': "03c90e21c4a6d4cc8fab75a8f38264b9be9b5c7de55fd1aabd9630f3c977e24923",
+                               'owner': {
+                                   "weight_threshold": 1,
+                                   "account_auths": [
+                                       ["xeroc", 1]
+                                       ],
+                                   "key_auths":[
+                                       ["03c90e21c4a6d4cc8fab75a8f38264b9be9b5c7de55fd1aabd9630f3c977e24923", 1]
+                                       ]
+                                   }
+                               }]],
               'ref_block_num': args.block_num,
               'ref_block_prefix': args.block_prefix,
               'signatures': [(binascii.hexlify(signature.signature))],
@@ -349,7 +373,8 @@ class Commands(object):
     ethereum_get_address.help = 'Get Ethereum address in hex encoding'
     ethereum_sign_tx.help = 'Sign (and optionally publish) Ethereum transaction'
     steem_get_pubkey.help = 'Get a Steem pubkey'
-    steem_transfer.help = "Sign a Steem transfer tx"
+    steem_transfer.help = "Create a signed Steem transfer transaction"
+    steem_account_update.help = "Create a signed Steem account_update transaction"
     get_entropy.help = 'Get example entropy'
     get_features.help = 'Retrieve device features and settings'
     get_public_node.help = 'Get public node of given path'
@@ -383,11 +408,12 @@ class Commands(object):
     )
 
     steem_get_pubkey.arguments = (
-        (('-n', '-address'), {'type': str}),
+        (('-n', '--pubkey'), {'type': str}),
         (('-d', '--show-display'), {'action': 'store_true', 'default': False}),
     )
 
     steem_transfer.arguments = (
+        (('-n', '--pubkey'), {'type': str}),
         (('-bn', '--block_num'), {'type': int}),
         (('-bp', '--block_prefix'), {'type': int}),
         (('-ex', '--expiration'), {'type': str}),
@@ -396,6 +422,15 @@ class Commands(object):
         (('-am', '--amount'), {'type': float}),
         (('-as', '--asset'), {'type': str}),
         (('-m', '--memo'), {'type': str}),
+    )
+
+    steem_account_update.arguments = (
+        (('-n', '--pubkey'), {'type': str}),
+        (('-bn', '--block_num'), {'type': int}),
+        (('-bp', '--block_prefix'), {'type': int}),
+        (('-ex', '--expiration'), {'type': str}),
+        (('-a', '--account'), {'type': str}),
+        (('-m', '--memo_key'), {'type': str}),
     )
 
     ethereum_sign_tx.arguments = (

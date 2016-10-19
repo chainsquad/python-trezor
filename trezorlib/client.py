@@ -428,34 +428,63 @@ class ProtocolMixin(object):
     @expect(proto.SteemPublicKey)
     def steem_get_pubkey(self, n, show_display=True):
         n = self._convert_prime(n)
-        return self.call(proto.SteemGetPublicKey(address_n=n))
+        return self.call(proto.SteemGetPublicKey(pubkey_n=n))
+
+    def steemGetTxPrototype(self, args):
+        from datetime import datetime
+        from calendar import timegm
+        pubkey_n = self.expand_path(args.pubkey)
+        pubkey_n = self._convert_prime(pubkey_n)
+        expiration = timegm(time.strptime((args.expiration + "UTC"), '%Y-%m-%dT%H:%M:%S%Z'))
+        tx = dict(
+            ref_block_num=args.block_num,
+            ref_block_prefix=args.block_prefix,
+            expiration=expiration,
+            pubkey_n=pubkey_n
+        )
+        return tx
 
     @expect(proto.SteemTxSignature)
     def steem_transfer(self, args):
-        from datetime import datetime
-        from calendar import timegm
-        expiration = timegm(time.strptime((args.expiration + "UTC"), '%Y-%m-%dT%H:%M:%S%Z'))
-
+        tx = self.steemGetTxPrototype(args)
         if args.asset == "SBD":
             amount = int(round(args.amount * 10 ** 3))
         elif args.asset == "STEEM":
             amount = int(round(args.amount * 10 ** 3))
         else:
             raise Exception("Unknown Asset")
-
-        return self.call(proto.SteemSignTx(
-            ref_block_num=args.block_num,
-            ref_block_prefix=args.block_prefix,
-            expiration=expiration,
+        tx.update(dict(
             transfer=proto.SteemOperationTransfer(
                 **{"from": getattr(args, "from"),
                    "to": args.to,
                    "amount": amount,  # amount is the satoshi integer
                    "asset": args.asset,
                    "memo": args.memo if args.memo else ""
-                   }
-            )
-        ))
+                   })))
+        return self.call(proto.SteemSignTx(**tx))
+
+    @expect(proto.SteemTxSignature)
+    def steem_account_update(self, args):
+        tx = self.steemGetTxPrototype(args)
+        tx.update(dict(
+            account_update=proto.SteemOperationAccountUpdate(
+                **{"account": args.account,
+                   "json_metadata": getattr(args, "json_metadata", ""),
+                   "memo_key": binascii.unhexlify("03c90e21c4a6d4cc8fab75a8f38264b9be9b5c7de55fd1aabd9630f3c977e24923"),
+                   "owner": proto.SteemPermission(**{
+                       "weight_threshold": 1,
+                       "account_auths": [proto.SteemAccountAccountAuth(**{
+                           "account": "xeroc",
+                           "weight": 1
+                           })],
+                       "key_auths": [proto.SteemAccountKeyAuth(**{
+                           "pubkey": binascii.unhexlify("03c90e21c4a6d4cc8fab75a8f38264b9be9b5c7de55fd1aabd9630f3c977e24923"),
+                           "weight": 1
+                           })]
+                       })
+                   })))
+
+        return self.call(proto.SteemSignTx(**tx))
 
     @session
     def ethereum_sign_tx(self, n, nonce, gas_price, gas_limit, to, value, data=None):
